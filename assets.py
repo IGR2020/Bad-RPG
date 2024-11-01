@@ -1,3 +1,5 @@
 import pygame as pg
+from functions import load_assets
 
-assets = {"Player": pg.image.load("assets/Player.png")}
+assets = {}
+assets.update(load_assets("assets"))

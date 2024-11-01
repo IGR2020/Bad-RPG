@@ -126,6 +126,26 @@ class Object(CoreObject):
         return player
 
 
+# -----------Pushable Object----------- #
+
+
+class PushableObject(CoreObject):
+    # Call this method after adding a player's x velocity / player's x velocity
+    def resolveXCollision(self, player: CorePlayer) -> CorePlayer:
+        if not pg.sprite.collide_mask(self, player):
+            return player
+        self.rect.x += player.x_vel / abs(player.x_vel)
+        return player
+
+
+    # Call this method after adding a player's y velocity / player's y velocity
+    def resolveYCollision(self, player: CorePlayer) -> CorePlayer:
+        if not pg.sprite.collide_mask(self, player):
+            return player
+        self.rect.y += player.y_vel / abs(player.y_vel)
+        return player
+
+
 # -----------Free Moving, Mouse Facing Player----------- #
 
 
