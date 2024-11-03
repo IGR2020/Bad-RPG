@@ -1,7 +1,7 @@
 import pygame as pg
 from pygame.transform import scale
 
-from collision import CorePlayer, PushableObject, Object
+from collision import *
 from random import randint
 from functions import blit_text
 from time import time
@@ -61,12 +61,9 @@ class Outdoors(Game):
             background: tuple[int, int, int] = (255, 255, 255),
     ) -> None:
         super().__init__(resolution, name, fps, background)
-        self.player = CorePlayer(100, 100, "Player", scale=4)
-        self.objects = [PushableObject(300, 300, "Rock", 3)]
-        self.void = Object(self.width-100, self.height/2, "Hole", scale=2)
+        self.player = CorePlayer(100, 100, "Player", scale=3)
+        self.objects = [Enemy(300, 300, "Rock", scale=3, speed=3), Object(500, 400, "Crate", scale=3)]
         self.x_offset, self.y_offset = 0, 0
-        self.money = 0
-        self.startTime = time()
 
     def event(self, event: pg.event.Event) -> None:
         super().event(event)
@@ -74,23 +71,16 @@ class Outdoors(Game):
 
     def tick(self) -> None:
         super().tick()
-        self.player.script()
+        self.player.script(self)
         self.player.collide(self.objects)
-
-        if randint(0, self.fps*3) == 0:
-            self.objects.append(PushableObject(randint(0, self.height), randint(0, self.height), "Rock", scale=randint(2, 5)))
-
         for obj in self.objects:
-            if pg.sprite.collide_mask(obj, self.void):
-                self.objects.remove(obj)
-                self.money += 1
+            obj.script(self)
+            obj.collide(self.objects)
+
 
     def display(self) -> None:
         [obj.display(self.window, self.x_offset, self.y_offset) for obj in self.objects]
-        self.void.display(self.window, self.x_offset, self.y_offset)
         self.player.display(self.window, self.x_offset, self.y_offset)
-        blit_text(self.window, f"Money {self.money}", (0, 0), colour=(0, 0, 0), size=30)
-        blit_text(self.window, f"Time {round(time() - self.startTime)}", (0, 50), colour=(0, 0, 0), size=30)
 
 instance = Outdoors((900, 500), "Outdoors", fps=60)
 instance.start()

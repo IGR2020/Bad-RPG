@@ -56,6 +56,8 @@ class CoreObject:
         self.mask = pg.mask.from_surface(self.rotatedImage)
         self.rect = self.rotatedImage.get_rect(center=self.rect.center)
 
+    def script(self, *args): ...
+
     def display(self, window: pg.Surface, x_offset: int = 0, y_offset: int = 0) -> None:
         window.blit(self.rotatedImage, (self.rect.x - x_offset, self.rect.y - y_offset))
 
@@ -64,6 +66,12 @@ class CoreObject:
 
     def unpack(self):
         self.reload()
+
+    def collide(self, *args): ...
+
+    def resolveXCollision(self, *args): ...
+
+    def resolveYCollision(self, *args): ...
 
 
 # -----------Base Player Class For All Collision Classes----------- #
@@ -74,7 +82,7 @@ class CorePlayer(CoreObject):
     maxSpeed = 5
     isShifting = False
 
-    def script(self):
+    def script(self, game):
         self.x_vel, self.y_vel = 0, 0
 
         keys = pg.key.get_pressed()
@@ -97,11 +105,15 @@ class CorePlayer(CoreObject):
         for _ in range(round(abs(self.x_vel))):
             self.rect.x += self.x_vel / abs(self.x_vel)
             for obj in objects:
+                if id(obj) == id(self):
+                    continue
                 obj.resolveXCollision(self)
 
         for _ in range(round(abs(self.y_vel))):
             self.rect.y += self.y_vel / abs(self.y_vel)
             for obj in objects:
+                if id(obj) == id(self):
+                    continue
                 obj.resolveYCollision(self)
 
 
@@ -196,7 +208,9 @@ class Player(CorePlayer):
         self.x_vel = math.sin(radians) * self.speed
         self.y_vel = math.cos(radians) * self.speed
 
-    def script(self, x_offset: int = 0, y_offset: int = 0):
+    def script(self, game):
+        x_offset: int = game.x_offset
+        y_offset: int = game.y_offset
 
         keys = pg.key.get_pressed()
         if keys[pg.K_w]:
@@ -293,6 +307,27 @@ class Door(Object):
         self.rotate()
         self.iter = 0
         return player
+
+
+# -----------Enemy----------- #
+
+
+class Enemy(CorePlayer):
+    def __init__(self, x, y, name, scale=1, angle=0, size=None, speed=1):
+        super().__init__(x, y, name, scale, angle, size)
+        self.speed = speed
+
+    def script(self, game):
+        player: CorePlayer = game.player
+
+        self.x_vel = player.rect.x - self.rect.x
+        self.y_vel = player.rect.y - self.rect.y
+        if self.x_vel != 0:
+            self.x_vel /= abs(self.x_vel)
+            self.x_vel *= self.speed
+        if self.y_vel != 0:
+            self.y_vel /= abs(self.y_vel)
+            self.y_vel *= self.speed
 
 
 # -----------Mouse Click Collision Object----------- #
