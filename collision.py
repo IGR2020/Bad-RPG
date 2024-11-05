@@ -1,5 +1,6 @@
 """Core Collision Module For Pygame Games"""
 import time
+from logging import fatal
 
 import  pygame as pg
 import math
@@ -24,9 +25,10 @@ def clamp(
 
 
 class CoreObject:
+    type = "Object"
 
     def __init__(
-        self, x: int, y: int, name: str, scale: int = 1, angle: int = 0, size: tuple[int, int] | list[int, int] = None
+        self, x: int, y: int, name: str, scale: int | float = 1, angle: int = 0, size: tuple[int, int] | list[int, int] = None, data=None
     ) -> None:
         self.name = name
         self.rect: pg.Rect = assets[name].get_rect(topleft=(x, y))
@@ -39,7 +41,7 @@ class CoreObject:
             self.size = size
         self.size = [self.size[0], self.size[1]]
         self.reload()
-        self.type = "Object"
+        self.data = data
 
     def resetSize(self) -> None:
         self.size = [assets[self.name].get_width(), assets[self.name].get_height()]
@@ -67,11 +69,15 @@ class CoreObject:
     def unpack(self):
         self.reload()
 
-    def collide(self, *args): ...
+    def collide(self, *args): return []
 
-    def resolveXCollision(self, *args): ...
+    def resolveXCollision(self, player, *args):
+        if pg.sprite.collide_mask(player, self): return True
+        return False
 
-    def resolveYCollision(self, *args): ...
+    def resolveYCollision(self, player, *args):
+        if pg.sprite.collide_mask(player, self): return True
+        return False
 
 
 # -----------Base Player Class For All Collision Classes----------- #
@@ -81,6 +87,7 @@ class CorePlayer(CoreObject):
     x_vel, y_vel = 0, 0
     maxSpeed = 5
     isShifting = False
+    type = "Player"
 
     def script(self, game):
         self.x_vel, self.y_vel = 0, 0
@@ -101,21 +108,25 @@ class CorePlayer(CoreObject):
         if event.key == pg.K_LSHIFT:
             self.isShifting = True
 
-    def collide(self, objects):
+    def collide(self, objects) -> list[CoreObject]:
+        "Returns Collided Objects"
+        collided_objects = []
         for _ in range(round(abs(self.x_vel))):
             self.rect.x += self.x_vel / abs(self.x_vel)
             for obj in objects:
                 if id(obj) == id(self):
                     continue
-                obj.resolveXCollision(self)
+                if obj.resolveXCollision(self):
+                    collided_objects.append(obj)
 
         for _ in range(round(abs(self.y_vel))):
             self.rect.y += self.y_vel / abs(self.y_vel)
             for obj in objects:
                 if id(obj) == id(self):
                     continue
-                obj.resolveYCollision(self)
-
+                if obj.resolveYCollision(self):
+                    collided_objects.append(obj)
+        return collided_objects
 
 # -----------Base Class For All Collision Classes----------- #
 
@@ -123,19 +134,19 @@ class CorePlayer(CoreObject):
 class Object(CoreObject):
 
     # Call this method after adding a player's x velocity / player's x velocity
-    def resolveXCollision(self, player: CorePlayer) -> CorePlayer:
+    def resolveXCollision(self, player: CorePlayer) -> bool:
         if not pg.sprite.collide_mask(self, player):
-            return player
+            return False
         player.rect.x -= player.x_vel / abs(player.x_vel)
-        return player
+        return True
 
 
     # Call this method after adding a player's y velocity / player's y velocity
-    def resolveYCollision(self, player: CorePlayer) -> CorePlayer:
+    def resolveYCollision(self, player: CorePlayer) -> bool:
         if not pg.sprite.collide_mask(self, player):
-            return player
+            return False
         player.rect.y -= player.y_vel / abs(player.y_vel)
-        return player
+        return True
 
 
 # -----------Pushable Object----------- #
@@ -240,41 +251,45 @@ class Player(CorePlayer):
         self.setXYFromSpeed()
 
 
-# -----------Chair (Interactive)----------- #
+# -----------Chair (Interactive) (Old)----------- #
 
 
 class Chair(Object):
+    type = "Chair"
+
     def __init__(self, x: int, y: int, name: str, scale: int = 1, angle: int = 0, size: tuple[int, int] | list[int] = None) -> None:
         super().__init__(x, y, name, scale, angle, size)
         self.type = "Chair"
 
-    def resolveXCollision(self, player: CorePlayer) -> CorePlayer:
+    def resolveXCollision(self, player: CorePlayer) -> bool:
         if not pg.sprite.collide_mask(self, player):
-            return player
+            return False
         if player.isSitting and time.time() - player.timeSinceSatUp > player.satUpCoolDown:
             player.rect.center = self.rect.center
         elif player.satUp:
             player.rect.bottom = self.rect.top
         else:
             return super().resolveXCollision(player)
-        return player
+        return True
 
-    def resolveYCollision(self, player: CorePlayer) -> CorePlayer:
+    def resolveYCollision(self, player: CorePlayer) -> bool:
         if player.satUp:
             player.rect.bottom = self.rect.top
         if not pg.sprite.collide_mask(self, player):
-            return player
+            return False
         if player.isSitting:
             player.rect.center = self.rect.center
         else:
             return super().resolveYCollision(player)
-        return player
+        return True
 
 
-# -----------Door (Interactive) Dysfunctional----------- #
+# -----------Door (Interactive) (Old) !Dysfunctional!----------- #
 
 
 class Door(Object):
+    type = "Door"
+
     def __init__(self, x: int, y: int, name: str, scale: int = 1, angle: int = 0, size: tuple[int, int] | list[int] = None) -> None:
         super().__init__(x, y, name, scale, angle, size)
         self.orentation = "horizontal"
@@ -313,8 +328,10 @@ class Door(Object):
 
 
 class Enemy(CorePlayer):
-    def __init__(self, x, y, name, scale=1, angle=0, size=None, speed=1):
-        super().__init__(x, y, name, scale, angle, size)
+    type = "Enemy"
+
+    def __init__(self, x, y, name, scale=1, angle=0, size=None, speed=1, data=None):
+        super().__init__(x, y, name, scale, angle, size, data)
         self.speed = speed
 
     def script(self, game):
